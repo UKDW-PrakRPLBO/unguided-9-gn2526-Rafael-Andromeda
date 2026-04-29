@@ -127,13 +127,51 @@ public class AppController {
         // ambil data dari attribute nilai_table
         // tips: target_col merujuk pada nama kolom di datbase sedangkan val adalah value yang di cari dari kolom tersebut misal:
         // target_col -> nim, val -> 71200001, maka kita mencari 71200001 di kolom nim
+        barchart.getData().clear();
+
+        List<Nilai> nilaiList = nilai_table.fetch_nilai_by(target_col, val);
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        series.setName("Jumlah Nilai");
+
+        for (String grade : nilai_table.penilaian) {
+            long count = nilaiList.stream()
+                    .filter(n -> n.getNilai().equals(grade))
+                    .count();
+            series.getData().add(new XYChart.Data<>(grade, count));
+        }
+
+        barchart.getData().add(series);
+
     }
 
     public void update_linechart(String kode_mk) {
         // TODO: buatlah linechart yang menggambarkan nilai mean dari setiap angkatan
         // angkatan dapat di ambil dengan cara getAngkatan() pada entity Mahasiswa
         // tips: fetch dulu entity mahasiswa menggunakan fetch_mahasiswa_by_nim() di mhs_tabel menggunakan nim pada nilai_table
+        linechart.getData().clear();
 
+        List<Nilai> nilaiList = nilai_table.fetch_nilai_by("kode_mk", kode_mk);
+        java.util.Map<Integer, List<Double>> nilaiPerAngkatan = new java.util.TreeMap<>();
+
+        for (Nilai n : nilaiList) {
+            Mahasiswa mhs = mhs_table.fetch_mahasiswa_by_nim(n.getNIM());
+            if (mhs != null) {
+                int angkatan = mhs.getAngkatan();
+                nilaiPerAngkatan.computeIfAbsent(angkatan, k -> new ArrayList<>())
+                        .add(n.get_converted_nilai());
+            }
+        }
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        series.setName("Rata-rata Nilai per Angkatan");
+
+        for (java.util.Map.Entry<Integer, List<Double>> entry : nilaiPerAngkatan.entrySet()) {
+            double mean = entry.getValue().stream()
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(0.0);
+            series.getData().add(new XYChart.Data<>(String.valueOf(entry.getKey()), mean));
+        }
+        linechart.getData().add(series);
     }
 
     public void update_piechart(String target_col, String val) {
@@ -142,5 +180,18 @@ public class AppController {
         // ambil data dari attribute nilai_table
         // tips: target_col merujuk pada nama kolom di datbase sedangkan val adalah value yang di cari dari kolom tersebut misal:
         // target_col -> nim, val -> 71200001, maka kita mencari 71200001 di kolom nim
+        piechart.getData().clear();
+
+        List<Nilai> nilaiList = nilai_table.fetch_nilai_by(target_col, val);
+
+        for (String grade : nilai_table.penilaian) {
+            long count = nilaiList.stream()
+                    .filter(n -> n.getNilai().equals(grade))
+                    .count();
+            if (count > 0) {
+                piechart.getData().add(new PieChart.Data(grade + " (" + count + ")", count));
+            }
+        }
     }
 }
+
